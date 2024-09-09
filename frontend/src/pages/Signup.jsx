@@ -5,6 +5,17 @@ import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "react-toastify";
+import { setCredentials } from "../redux/features/auth/authSlice";
+import { useDispatch } from "react-redux";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
+
+const baseURL = import.meta.env.VITE_BACKEND_BASE_URL;
+
+const createUser = async (userData) => {
+  const { data } = await axios.post(`${baseURL}/api/v1/user/signup`, userData);
+  return data;
+};
 
 const signupSchema = z
   .object({
@@ -22,10 +33,14 @@ const signupSchema = z
   });
 
 function Signup() {
+  const queryClient = useQueryClient();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
   const {
     register,
     handleSubmit,
-    formState: { errors, isLoading },
+    formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
       firstname: "",
@@ -37,34 +52,44 @@ function Signup() {
     resolver: zodResolver(signupSchema),
   });
 
-  const signup = async (data) => {
-    console.log(data);
-    toast.success("Signup success");
-    navigate("/");
+  const mutation = useMutation({
+    mutationFn: createUser,
+    onSuccess: (data) => {
+      // Dispatch the user data to Redux store
+      dispatch(setCredentials(data));
+      queryClient.setQueryData(["user"], data);
+      toast.success("Signup successful");
+      navigate("/");
+    },
+    onError: (error) => {
+      toast.error(
+        error.response?.data?.message || "An error occurred during signup"
+      );
+    },
+  });
+
+  const signup = (data) => {
+    mutation.mutate(data);
   };
 
-  const navigate = useNavigate();
   return (
     <div className="flex items-center justify-center">
-      <div
-        className={`mx-auto w-full max-w-lg  rounded-xl 
-        p-10`}
-      >
+      <div className="mx-auto w-full max-w-lg rounded-xl p-10">
         <h2 className="text-2xl font-bold m-2 text-blue-600">Signup</h2>
         <div className="border border-blue-600 rounded-md">
           <form onSubmit={handleSubmit(signup)}>
             <div className="p-4">
               <Input placeholder="First Name" {...register("firstname")} />
               {errors.firstname && (
-                <p style={{ color: "red" }}>{errors.firstname.message} </p>
+                <p className="text-red-500">{errors.firstname.message}</p>
               )}
               <Input placeholder="Last Name" {...register("lastname")} />
               {errors.lastname && (
-                <p style={{ color: "red" }}>{errors.lastname.message} </p>
+                <p className="text-red-500">{errors.lastname.message}</p>
               )}
               <Input placeholder="Email" type="email" {...register("email")} />
               {errors.email && (
-                <p style={{ color: "red" }}>{errors.email.message} </p>
+                <p className="text-red-500">{errors.email.message}</p>
               )}
               <Input
                 type="password"
@@ -72,7 +97,7 @@ function Signup() {
                 {...register("password")}
               />
               {errors.password && (
-                <p style={{ color: "red" }}>{errors.password.message} </p>
+                <p className="text-red-500">{errors.password.message}</p>
               )}
               <Input
                 type="password"
@@ -80,26 +105,24 @@ function Signup() {
                 {...register("confirmPassword")}
               />
               {errors.confirmPassword && (
-                <p style={{ color: "red" }}>
-                  {errors.confirmPassword.message}{" "}
-                </p>
+                <p className="text-red-500">{errors.confirmPassword.message}</p>
               )}
               <Button
                 textColor="text-white"
                 type="submit"
                 className="w-full"
-                disabled={isLoading}
+                disabled={isSubmitting}
               >
-                {isLoading ? "Submitting..." : "Signup"}
+                {isSubmitting ? "Signing up..." : "Signup"}
               </Button>
             </div>
-            <p className="m-1 text-center  text-black">
+            <p className="m-1 text-center text-black">
               Already have an account?&nbsp;
-              <Link to="/login" className=" text-blue-600">
+              <Link to="/login" className="text-blue-600">
                 Login
               </Link>
             </p>
-            <button className="bg-blue-600 mx-auto block  text-white rounded-md p-2 m-4 justify-center">
+            <button className="bg-blue-600 mx-auto block text-white rounded-md p-2 m-4 justify-center">
               Signup with Google
             </button>
           </form>
