@@ -48,9 +48,7 @@ const deleteTask = async (req, res) => {
 };
 
 const reorderTasks = async (req, res) => {
-  console.log("req.body : : :", req.body);
   const { tasks } = req.body;
-  console.log("tasks : : :", tasks);
   try {
     for (let task of tasks) {
       await taskModel.findByIdAndUpdate(task.id, { status: task.status });
