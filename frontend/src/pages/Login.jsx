@@ -9,6 +9,7 @@ import { setCredentials } from "../redux/features/auth/authSlice";
 import { useDispatch } from "react-redux";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
+import OAuth from "../components/OAuth";
 
 const baseURL = import.meta.env.VITE_BACKEND_BASE_URL;
 
@@ -104,9 +105,10 @@ function Login() {
                 Sign up
               </Link>
             </p>
-            <button className="bg-blue-600 mx-auto block text-white rounded-md p-2 mb-4 hover:bg-blue-700 transition-colors">
+            {/* <button className="bg-blue-600 mx-auto block text-white rounded-md p-2 mb-4 hover:bg-blue-700 transition-colors">
               Login with Google
-            </button>
+            </button> */}
+            <OAuth title={"Login with Google"} />
           </form>
         </div>
       </div>
