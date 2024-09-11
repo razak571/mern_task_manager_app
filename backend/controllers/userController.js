@@ -5,8 +5,9 @@ import generateToken from "../utils/generateToken.js";
 import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
 
+
 const domain =
-  process.env.NODE_ENV === "production" ? `.onrender.com` : "localhost";
+  process.env.NODE_ENV === "production" ? "taskmanger-server-qg2o.onrender.com" : "localhost";
 
 const signupUser = asyncHandler(async (req, res) => {
   const { firstname, lastname, email, password } = req.body;
