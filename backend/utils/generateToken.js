@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 
 const domain =
-  process.env.NODE_ENV === "production" ? `.onrender.com` : "localhost";
+  process.env.NODE_ENV === "production" ? `.task-manager` : "localhost";
 
 const generateToken = (res, userId) => {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
