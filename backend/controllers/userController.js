@@ -6,7 +6,7 @@ import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 const domain =
-  process.env.NODE_ENV === "production" ? `.onrender.com` : "localhost";
+  process.env.NODE_ENV === "production" ? `.task-manager` : "localhost";
 
 const signupUser = asyncHandler(async (req, res) => {
   const { firstname, lastname, email, password } = req.body;
