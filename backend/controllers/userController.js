@@ -2,6 +2,13 @@ import userModel from "../models/User.js";
 import bcrypt from "bcryptjs";
 import asyncHandler from "../middlewares/asyncHandler.js";
 import generateToken from "../utils/generateToken.js";
+import bcryptjs from "bcryptjs";
+import jwt from "jsonwebtoken";
+
+const domain =
+  process.env.NODE_ENV === "production"
+    ? `.tmv-movies-server.onrender.com`
+    : "localhost";
 
 const signupUser = asyncHandler(async (req, res) => {
   const { firstname, lastname, email, password } = req.body;
@@ -77,4 +84,73 @@ const logoutUser = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "Logged out successfully" });
 });
 
-export { signupUser, loginUser, logoutUser };
+const google = asyncHandler(async (req, res) => {
+  const { name, email, googlePhotoUrl } = req.body;
+
+  try {
+    const user = await userModel.findOne({ email });
+    if (user) {
+      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+        expiresIn: "1d",
+      });
+      const { password, ...rest } = user._doc;
+      res
+        .status(200)
+        .cookie("jwt", token, {
+          httpOnly: true,
+          domain,
+          signed: true,
+          path: "/",
+          secure: true,
+          sameSite: "None",
+          maxAge: 1 * 24 * 60 * 60 * 1000,
+        })
+        .json(rest);
+    } else {
+      const generatedPassword =
+        Math.random().toString(36).slice(-8) +
+        Math.random().toString(36).slice(-8);
+      const hashedPassword = bcryptjs.hashSync(generatedPassword, 10);
+
+      const newUser = new userModel({
+        // firstname : name.toLowerCase().split(' ').join("") + Math.random().toString(9).slice(-4)
+        firstname: name,
+        lastname: name,
+        email,
+        profilePicture: googlePhotoUrl,
+        password: hashedPassword,
+      });
+
+      await newUser.save();
+
+      const token = jwt.sign(
+        {
+          id: newUser._id,
+        },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: "1d",
+        }
+      );
+
+      const { password, ...rest } = newUser._doc;
+
+      res
+        .status(200)
+        .cookie("jwt", token, {
+          httpOnly: true,
+          domain,
+          signed: true,
+          path: "/",
+          secure: true,
+          sameSite: "None",
+          maxAge: 1 * 24 * 60 * 60 * 1000,
+        })
+        .json(rest);
+    }
+  } catch (error) {
+    throw new Error(error.message);
+  }
+});
+
+export { signupUser, loginUser, logoutUser, google };

@@ -1,77 +1,42 @@
 /* eslint-disable react/prop-types */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { X, Edit, Eye } from "lucide-react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  setTasks,
+  addTask,
+  updateTask,
+  removeTask,
+} from "../redux/features/task/taskSlice";
+import { logout } from "../redux/features/auth/authSlice";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
-const initialColumns = {
-  todo: {
-    id: "todo",
-    title: "TODO",
-    tasks: [
-      {
-        id: "task-1",
-        content: "Task 1",
-        description: "Description 1",
-        createdAt: "01/09/2024, 09:30:00",
-      },
-      {
-        id: "task-2",
-        content: "Task 2",
-        description: "Description 2",
-        createdAt: "01/09/2024, 09:30:00",
-      },
-      {
-        id: "task-3",
-        content: "Task 3",
-        description: "Description 3",
-        createdAt: "01/09/2024, 09:30:00",
-      },
-    ],
-  },
-  inProgress: {
-    id: "inProgress",
-    title: "IN PROGRESS",
-    tasks: [
-      {
-        id: "task-4",
-        content: "Task 4",
-        description: "Description 4",
-        createdAt: "01/09/2024, 09:30:00",
-      },
-      {
-        id: "task-5",
-        content: "Task 5",
-        description: "Description 5",
-        createdAt: "01/09/2024, 09:30:00",
-      },
-    ],
-  },
-  done: {
-    id: "done",
-    title: "DONE",
-    tasks: [
-      {
-        id: "task-6",
-        content: "Task 6",
-        description: "Description 6",
-        createdAt: "01/09/2024, 09:30:00",
-      },
-    ],
-  },
-};
+axios.defaults.withCredentials = true;
+
+const API_URL =
+  import.meta.env.VITE_BACKEND_BASE_URL || "http://localhost:3000";
 
 const TaskDetailModal = ({ task, onClose }) => (
   <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center">
     <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
       <h2 className="text-xl font-bold mb-4">Task Details</h2>
       <p>
-        <strong>Title:</strong> {task.content}
+        <strong>Title:</strong> {task.title}
       </p>
       <p>
         <strong>Description:</strong> {task.description}
       </p>
       <p>
-        <strong>Created at:</strong> {task.createdAt}
+        <strong>Status:</strong> {task.status}
+      </p>
+      <p>
+        <strong>Priority:</strong> {task.priority}
+      </p>
+      <p>
+        <strong>Due Date:</strong>{" "}
+        {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "Not set"}
       </p>
       <button
         onClick={onClose}
@@ -97,9 +62,9 @@ const EditTaskModal = ({ task, onSave, onClose }) => {
         <h2 className="text-xl font-bold mb-4">Edit Task</h2>
         <input
           type="text"
-          value={editedTask.content}
+          value={editedTask.title}
           onChange={(e) =>
-            setEditedTask({ ...editedTask, content: e.target.value })
+            setEditedTask({ ...editedTask, title: e.target.value })
           }
           className="w-full p-2 mb-4 border rounded"
         />
@@ -110,6 +75,36 @@ const EditTaskModal = ({ task, onSave, onClose }) => {
           }
           className="w-full p-2 mb-4 border rounded"
           rows="3"
+        />
+        <select
+          value={editedTask.status}
+          onChange={(e) =>
+            setEditedTask({ ...editedTask, status: e.target.value })
+          }
+          className="w-full p-2 mb-4 border rounded"
+        >
+          <option value="To Do">To Do</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Done">Done</option>
+        </select>
+        <select
+          value={editedTask.priority}
+          onChange={(e) =>
+            setEditedTask({ ...editedTask, priority: e.target.value })
+          }
+          className="w-full p-2 mb-4 border rounded"
+        >
+          <option value="Low">Low</option>
+          <option value="Medium">Medium</option>
+          <option value="High">High</option>
+        </select>
+        <input
+          type="date"
+          value={editedTask.dueDate ? editedTask.dueDate.split("T")[0] : ""}
+          onChange={(e) =>
+            setEditedTask({ ...editedTask, dueDate: e.target.value })
+          }
+          className="w-full p-2 mb-4 border rounded"
         />
         <div className="flex justify-end">
           <button
@@ -131,109 +126,160 @@ const EditTaskModal = ({ task, onSave, onClose }) => {
 };
 
 const TrelloBoard = () => {
-  const [columns, setColumns] = useState(initialColumns);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("recent");
   const [viewTask, setViewTask] = useState(null);
   const [editTask, setEditTask] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const tasks = useSelector((state) => state.tasks.tasks);
 
-  const onDragEnd = (result) => {
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/api/v1/tasks`);
+        dispatch(setTasks(response.data));
+        setLoading(false);
+      } catch (err) {
+        if (err.response && err.response.status === 401) {
+          dispatch(logout());
+          navigate("/login");
+        } else {
+          setError(err.message);
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchTasks();
+  }, [dispatch, navigate]);
+
+  const columns = {
+    todo: {
+      id: "todo",
+      title: "TODO",
+      tasks: tasks.filter((task) => task.status === "To Do"),
+    },
+    inProgress: {
+      id: "inProgress",
+      title: "IN PROGRESS",
+      tasks: tasks.filter((task) => task.status === "In Progress"),
+    },
+    done: {
+      id: "done",
+      title: "DONE",
+      tasks: tasks.filter((task) => task.status === "Done"),
+    },
+  };
+
+  const onDragEnd = async (result) => {
     const { source, destination } = result;
     if (!destination) return;
 
-    if (source.droppableId !== destination.droppableId) {
-      const sourceColumn = columns[source.droppableId];
-      const destColumn = columns[destination.droppableId];
-      const sourceItems = [...sourceColumn.tasks];
-      const destItems = [...destColumn.tasks];
-      const [removed] = sourceItems.splice(source.index, 1);
-      destItems.splice(destination.index, 0, removed);
-      setColumns({
-        ...columns,
-        [source.droppableId]: {
-          ...sourceColumn,
-          tasks: sourceItems,
-        },
-        [destination.droppableId]: {
-          ...destColumn,
-          tasks: destItems,
-        },
-      });
-    } else {
-      const column = columns[source.droppableId];
-      const copiedItems = [...column.tasks];
-      const [removed] = copiedItems.splice(source.index, 1);
-      copiedItems.splice(destination.index, 0, removed);
-      setColumns({
-        ...columns,
-        [source.droppableId]: {
-          ...column,
-          tasks: copiedItems,
-        },
-      });
+    const task = columns[source.droppableId].tasks[source.index];
+    const updatedTask = {
+      ...task,
+      status:
+        destination.droppableId === "inProgress"
+          ? "In Progress"
+          : destination.droppableId === "done"
+          ? "Done"
+          : "To Do",
+    };
+
+    try {
+      const response = await axios.put(
+        `${API_URL}/api/v1/tasks/${task._id}`,
+        updatedTask
+      );
+      dispatch(updateTask(response.data));
+    } catch (err) {
+      if (err.response && err.response.status === 401) {
+        dispatch(logout());
+        navigate("/login");
+      } else {
+        setError(err.message);
+      }
     }
   };
 
-  const addTask = () => {
+  const addNewTask = async () => {
     const newTask = {
-      id: `task-${Date.now()}`,
-      content: "New Task",
+      title: "New Task",
       description: "New Description",
-      createdAt: new Date().toLocaleString(),
+      status: "To Do",
+      priority: "Medium",
+      dueDate: new Date().toISOString().split("T")[0],
     };
-    setColumns({
-      ...columns,
-      todo: {
-        ...columns.todo,
-        tasks: [newTask, ...columns.todo.tasks],
-      },
-    });
+
+    try {
+      const response = await axios.post(`${API_URL}/api/v1/tasks`, newTask);
+      dispatch(addTask(response.data));
+    } catch (err) {
+      if (err.response && err.response.status === 401) {
+        dispatch(logout());
+        navigate("/login");
+      } else {
+        setError(err.message);
+      }
+    }
   };
 
-  const deleteTask = (columnId, taskId) => {
-    const column = columns[columnId];
-    const updatedTasks = column.tasks.filter((task) => task.id !== taskId);
-    setColumns({
-      ...columns,
-      [columnId]: {
-        ...column,
-        tasks: updatedTasks,
-      },
-    });
+  const deleteTask = async (taskId) => {
+    try {
+      await axios.delete(`${API_URL}/api/v1/tasks/${taskId}`);
+      dispatch(removeTask(taskId));
+    } catch (err) {
+      if (err.response && err.response.status === 401) {
+        dispatch(logout());
+        navigate("/login");
+      } else {
+        setError(err.message);
+      }
+    }
   };
 
-  const filteredAndSortedColumns = Object.keys(columns).reduce(
-    (acc, columnId) => {
-      const column = columns[columnId];
-      const filteredTasks = column.tasks.filter(
-        (task) =>
-          task.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          task.description.toLowerCase().includes(searchTerm.toLowerCase())
+  const handleEditTask = async (updatedTask) => {
+    try {
+      const response = await axios.put(
+        `${API_URL}/api/v1/tasks/${updatedTask._id}`,
+        updatedTask
       );
-      const sortedTasks = [...filteredTasks].sort((a, b) => {
-        if (sortBy === "recent") {
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        }
-        return a.content.localeCompare(b.content);
-      });
-      acc[columnId] = { ...column, tasks: sortedTasks };
-      return acc;
-    },
-    {}
+      dispatch(updateTask(response.data));
+    } catch (err) {
+      if (err.response && err.response.status === 401) {
+        dispatch(logout());
+        navigate("/login");
+      } else {
+        setError(err.message);
+      }
+    }
+  };
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+
+  const filteredTasks = tasks.filter(
+    (task) =>
+      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleEditTask = (columnId, taskId, updatedTask) => {
-    const column = columns[columnId];
-    const updatedTasks = column.tasks.map((task) =>
-      task.id === taskId ? { ...task, ...updatedTask } : task
-    );
-    setColumns({
-      ...columns,
-      [columnId]: {
-        ...column,
-        tasks: updatedTasks,
-      },
-    });
+  const filteredColumns = {
+    todo: {
+      ...columns.todo,
+      tasks: filteredTasks.filter((task) => task.status === "To Do"),
+    },
+    inProgress: {
+      ...columns.inProgress,
+      tasks: filteredTasks.filter((task) => task.status === "In Progress"),
+    },
+    done: {
+      ...columns.done,
+      tasks: filteredTasks.filter((task) => task.status === "Done"),
+    },
   };
 
   return (
@@ -241,7 +287,7 @@ const TrelloBoard = () => {
       <div className="mb-4 flex justify-between items-center">
         <button
           className="bg-blue-500 text-white px-4 py-2 rounded"
-          onClick={addTask}
+          onClick={addNewTask}
         >
           Add Task
         </button>
@@ -263,7 +309,7 @@ const TrelloBoard = () => {
       </div>
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex flex-col md:flex-row gap-4">
-          {Object.values(filteredAndSortedColumns).map((column) => (
+          {Object.values(filteredColumns).map((column) => (
             <div key={column.id} className="flex-1 min-w-[250px]">
               <h2 className="font-bold mb-2 bg-blue-500 text-white p-2 rounded">
                 {column.title}
@@ -277,8 +323,8 @@ const TrelloBoard = () => {
                   >
                     {column.tasks.map((task, index) => (
                       <Draggable
-                        key={task.id}
-                        draggableId={task.id}
+                        key={task._id}
+                        draggableId={task._id}
                         index={index}
                       >
                         {(provided) => (
@@ -288,24 +334,25 @@ const TrelloBoard = () => {
                             {...provided.dragHandleProps}
                             className="bg-white p-2 mb-2 rounded shadow"
                           >
-                            <h3 className="font-semibold">{task.content}</h3>
+                            <h3 className="font-semibold">{task.title}</h3>
                             <p className="text-sm text-gray-600">
                               {task.description}
                             </p>
                             <p className="text-xs text-gray-400">
-                              {task.createdAt}
+                              Due:{" "}
+                              {task.dueDate
+                                ? new Date(task.dueDate).toLocaleDateString()
+                                : "Not set"}
                             </p>
                             <div className="flex justify-end mt-2">
                               <button
-                                onClick={() => deleteTask(column.id, task.id)}
+                                onClick={() => deleteTask(task._id)}
                                 className="text-red-500 mr-2"
                               >
                                 <X size={16} />
                               </button>
                               <button
-                                onClick={() =>
-                                  setEditTask({ ...task, columnId: column.id })
-                                }
+                                onClick={() => setEditTask(task)}
                                 className="text-blue-500 mr-2"
                               >
                                 <Edit size={16} />
@@ -335,9 +382,7 @@ const TrelloBoard = () => {
       {editTask && (
         <EditTaskModal
           task={editTask}
-          onSave={(updatedTask) =>
-            handleEditTask(editTask.columnId, editTask.id, updatedTask)
-          }
+          onSave={handleEditTask}
           onClose={() => setEditTask(null)}
         />
       )}
