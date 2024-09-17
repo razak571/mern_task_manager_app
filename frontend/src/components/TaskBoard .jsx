@@ -12,6 +12,7 @@ import {
 import { logout } from "../redux/features/auth/authSlice";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import ClipLoader from "react-spinners/ClipLoader";
 
 axios.defaults.withCredentials = true;
 
@@ -135,6 +136,13 @@ const TrelloBoard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const tasks = useSelector((state) => state.tasks.tasks);
+  let color = "#ffffff";
+
+  const override = {
+    display: "block",
+    margin: "0 auto",
+    borderColor: "#3498db",
+  };
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -260,10 +268,18 @@ const TrelloBoard = () => {
 
   if (loading)
     return (
-      <div>
+      <div className="flex justify-center text-2xl">
         <h1>
           Using Free Service for Hosting, So it will take upto 40-50 secs for
           Initial Loading...
+          <ClipLoader
+            color={color}
+            loading={loading}
+            cssOverride={override}
+            size={150}
+            aria-label="Loading Spinner"
+            data-testid="loader"
+          />
         </h1>
       </div>
     );
