@@ -258,7 +258,15 @@ const TrelloBoard = () => {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading)
+    return (
+      <div>
+        <h1>
+          Using Free Service for Hosting, So it will take upto 40-50 secs for
+          Initial Loading...
+        </h1>
+      </div>
+    );
   if (error) return <div>Error: {error}</div>;
 
   const filteredTasks = tasks.filter(
